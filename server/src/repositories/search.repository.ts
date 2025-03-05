@@ -109,6 +109,7 @@ export interface SearchExifOptions {
   model?: string | null;
   state?: string | null;
   description?: string | null;
+  rating?: number | null;
 }
 
 export interface SearchEmbeddingOptions {
@@ -317,6 +318,7 @@ export class SearchRepository {
           .where('assets.isVisible', '=', true)
           .where('assets.type', '=', type)
           .where('assets.id', '!=', asUuid(assetId))
+          .where('assets.stackId', 'is', null)
           .orderBy(sql`smart_search.embedding <=> ${embedding}`)
           .limit(64),
       )

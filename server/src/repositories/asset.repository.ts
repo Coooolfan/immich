@@ -23,7 +23,6 @@ import {
   withTags,
 } from 'src/entities/asset.entity';
 import { AssetFileType, AssetOrder, AssetStatus, AssetType } from 'src/enum';
-import { MapMarker, MapMarkerSearchOptions } from 'src/repositories/map.repository';
 import { AssetSearchOptions, SearchExploreItem, SearchExploreItemSet } from 'src/repositories/search.repository';
 import { anyUuid, asUuid, mapUpsertColumns } from 'src/utils/database';
 import { Paginated, PaginationOptions, paginationHelper } from 'src/utils/pagination';
@@ -133,7 +132,7 @@ export type AssetPathEntity = Pick<AssetEntity, 'id' | 'originalPath' | 'isOffli
 
 export interface GetByIdsRelations {
   exifInfo?: boolean;
-  faces?: { person?: boolean };
+  faces?: { person?: boolean; withDeleted?: boolean };
   files?: boolean;
   library?: boolean;
   owner?: boolean;
@@ -193,7 +192,7 @@ export class AssetRepository {
   }
 
   @GenerateSql({ params: [DummyValue.UUID, { day: 1, month: 1 }] })
-  getByDayOfYear(ownerIds: string[], { day, month }: MonthDay): Promise<DayOfYearAssets[]> {
+  getByDayOfYear(ownerIds: string[], { day, month }: MonthDay) {
     return this.db
       .with('res', (qb) =>
         qb
@@ -240,16 +239,12 @@ export class AssetRepository {
           .select((eb) => eb.fn.toJson(eb.table('exif')).as('exifInfo')),
       )
       .selectFrom('res')
-      .select(
-        sql<number>`((now() at time zone 'UTC')::date - ("localDateTime" at time zone 'UTC')::date) / 365`.as(
-          'yearsAgo',
-        ),
-      )
+      .select(sql<number>`date_part('year', ("localDateTime" at time zone 'UTC')::date)::int`.as('year'))
       .select((eb) => eb.fn.jsonAgg(eb.table('res')).as('assets'))
       .groupBy(sql`("localDateTime" at time zone 'UTC')::date`)
       .orderBy(sql`("localDateTime" at time zone 'UTC')::date`, 'desc')
       .limit(10)
-      .execute() as any as Promise<DayOfYearAssets[]>;
+      .execute();
   }
 
   @GenerateSql({ params: [[DummyValue.UUID]] })
@@ -263,7 +258,11 @@ export class AssetRepository {
       .selectAll('assets')
       .where('assets.id', '=', anyUuid(ids))
       .$if(!!exifInfo, withExif)
-      .$if(!!faces, (qb) => qb.select(faces?.person ? withFacesAndPeople : withFaces))
+      .$if(!!faces, (qb) =>
+        qb.select((eb) =>
+          faces?.person ? withFacesAndPeople(eb, faces.withDeleted) : withFaces(eb, faces?.withDeleted),
+        ),
+      )
       .$if(!!files, (qb) => qb.select(withFiles))
       .$if(!!library, (qb) => qb.select(withLibrary))
       .$if(!!owner, (qb) => qb.select(withOwner))
@@ -639,26 +638,6 @@ export class AssetRepository {
       .executeTakeFirst() as Promise<AssetEntity | undefined>;
   }
 
-  private getMapMarkers(ownerIds: string[], options: MapMarkerSearchOptions = {}): Promise<MapMarker[]> {
-    const { isArchived, isFavorite, fileCreatedAfter, fileCreatedBefore } = options;
-
-    return this.db
-      .selectFrom('assets')
-      .leftJoin('exif', 'assets.id', 'exif.assetId')
-      .select(['id', 'latitude as lat', 'longitude as lon', 'city', 'state', 'country'])
-      .where('ownerId', '=', anyUuid(ownerIds))
-      .where('latitude', 'is not', null)
-      .where('longitude', 'is not', null)
-      .where('isVisible', '=', true)
-      .where('deletedAt', 'is', null)
-      .$if(!!isArchived, (qb) => qb.where('isArchived', '=', isArchived!))
-      .$if(!!isFavorite, (qb) => qb.where('isFavorite', '=', isFavorite!))
-      .$if(!!fileCreatedAfter, (qb) => qb.where('fileCreatedAt', '>=', fileCreatedAfter!))
-      .$if(!!fileCreatedBefore, (qb) => qb.where('fileCreatedAt', '<=', fileCreatedBefore!))
-      .orderBy('fileCreatedAt', 'desc')
-      .execute() as Promise<MapMarker[]>;
-  }
-
   getStatistics(ownerId: string, { isArchived, isFavorite, isTrashed }: AssetStatsOptions): Promise<AssetStats> {
     return this.db
       .selectFrom('assets')
@@ -811,6 +790,7 @@ export class AssetRepository {
             .where('assets.duplicateId', 'is not', null)
             .where('assets.deletedAt', 'is', null)
             .where('assets.isVisible', '=', true)
+            .where('assets.stackId', 'is', null)
             .groupBy('assets.duplicateId'),
         )
         .with('unique', (qb) =>

@@ -16,7 +16,7 @@ import 'package:immich_mobile/interfaces/album.interface.dart';
 import 'package:immich_mobile/interfaces/album_api.interface.dart';
 import 'package:immich_mobile/interfaces/album_media.interface.dart';
 import 'package:immich_mobile/interfaces/asset.interface.dart';
-import 'package:immich_mobile/interfaces/backup.interface.dart';
+import 'package:immich_mobile/interfaces/backup_album.interface.dart';
 import 'package:immich_mobile/models/albums/album_add_asset_response.model.dart';
 import 'package:immich_mobile/models/albums/album_search.model.dart';
 import 'package:immich_mobile/repositories/album.repository.dart';
@@ -27,7 +27,6 @@ import 'package:immich_mobile/repositories/backup.repository.dart';
 import 'package:immich_mobile/services/entity.service.dart';
 import 'package:immich_mobile/services/sync.service.dart';
 import 'package:immich_mobile/services/user.service.dart';
-import 'package:immich_mobile/widgets/asset_grid/asset_grid_data_structure.dart';
 import 'package:logging/logging.dart';
 
 final albumServiceProvider = Provider(
@@ -37,7 +36,7 @@ final albumServiceProvider = Provider(
     ref.watch(entityServiceProvider),
     ref.watch(albumRepositoryProvider),
     ref.watch(assetRepositoryProvider),
-    ref.watch(backupRepositoryProvider),
+    ref.watch(backupAlbumRepositoryProvider),
     ref.watch(albumMediaRepositoryProvider),
     ref.watch(albumApiRepositoryProvider),
   ),
@@ -49,7 +48,7 @@ class AlbumService {
   final EntityService _entityService;
   final IAlbumRepository _albumRepository;
   final IAssetRepository _assetRepository;
-  final IBackupRepository _backupAlbumRepository;
+  final IBackupAlbumRepository _backupAlbumRepository;
   final IAlbumMediaRepository _albumMediaRepository;
   final IAlbumApiRepository _albumApiRepository;
   final Logger _log = Logger('AlbumService');
@@ -170,7 +169,10 @@ class AlbumService {
     final Stopwatch sw = Stopwatch()..start();
     bool changes = false;
     try {
-      await _userService.refreshUsers();
+      final users = await _userService.getUsersFromServer();
+      if (users != null) {
+        await _syncService.syncUsersFromServer(users);
+      }
       final (sharedAlbum, ownedAlbum) = await (
         // Note: `shared: true` is required to get albums that don't belong to
         // us due to unusual behaviour on the API but this will also return our
@@ -467,10 +469,6 @@ class AlbumService {
 
   Stream<Album?> watchAlbum(int id) {
     return _albumRepository.watchAlbum(id);
-  }
-
-  Stream<RenderList> getRenderListGenerator(Album album) {
-    return _albumRepository.getRenderListStream(album);
   }
 
   Future<List<Album>> search(

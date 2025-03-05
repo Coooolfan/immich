@@ -4,6 +4,7 @@ import {
   ImageFormat,
   JobName,
   QueueName,
+  SyncEntityType,
   TranscodeTarget,
   VideoCodec,
 } from 'src/enum';
@@ -35,6 +36,15 @@ export type MemoryItem =
   | Awaited<ReturnType<IMemoryRepository['search']>>[0];
 
 export type SessionItem = Awaited<ReturnType<ISessionRepository['getByUserId']>>[0];
+
+export type TagItem = {
+  id: string;
+  value: string;
+  createdAt: Date;
+  updatedAt: Date;
+  color: string | null;
+  parentId: string | null;
+};
 
 export interface CropOptions {
   top: number;
@@ -302,7 +312,6 @@ export type JobItem =
   // Metadata Extraction
   | { name: JobName.QUEUE_METADATA_EXTRACTION; data: IBaseJob }
   | { name: JobName.METADATA_EXTRACTION; data: IEntityJob }
-  | { name: JobName.LINK_LIVE_PHOTOS; data: IEntityJob }
   // Sidecar Scanning
   | { name: JobName.QUEUE_SIDECAR; data: IBaseJob }
   | { name: JobName.SIDECAR_DISCOVERY; data: IEntityJob }
@@ -325,6 +334,10 @@ export type JobItem =
   | { name: JobName.QUEUE_DUPLICATE_DETECTION; data: IBaseJob }
   | { name: JobName.DUPLICATE_DETECTION; data: IEntityJob }
 
+  // Memories
+  | { name: JobName.MEMORIES_CLEANUP; data?: IBaseJob }
+  | { name: JobName.MEMORIES_CREATE; data?: IBaseJob }
+
   // Filesystem
   | { name: JobName.DELETE_FILES; data: IDeleteFilesJob }
 
@@ -346,7 +359,7 @@ export type JobItem =
   | { name: JobName.LIBRARY_QUEUE_SYNC_ASSETS; data: IEntityJob }
   | { name: JobName.LIBRARY_SYNC_ASSET; data: ILibraryAssetJob }
   | { name: JobName.LIBRARY_DELETE; data: IEntityJob }
-  | { name: JobName.LIBRARY_QUEUE_SYNC_ALL; data?: IBaseJob }
+  | { name: JobName.LIBRARY_QUEUE_SCAN_ALL; data?: IBaseJob }
   | { name: JobName.LIBRARY_QUEUE_CLEANUP; data: IBaseJob }
 
   // Notification
@@ -356,7 +369,11 @@ export type JobItem =
   | { name: JobName.NOTIFY_SIGNUP; data: INotifySignupJob }
 
   // Version check
-  | { name: JobName.VERSION_CHECK; data: IBaseJob };
+  | { name: JobName.VERSION_CHECK; data: IBaseJob }
+
+  // Memories
+  | { name: JobName.MEMORIES_CLEANUP; data?: IBaseJob }
+  | { name: JobName.MEMORIES_CREATE; data?: IBaseJob };
 
 export type VectorExtension = DatabaseExtension.VECTOR | DatabaseExtension.VECTORS;
 
@@ -409,3 +426,8 @@ export interface IBulkAsset {
   addAssetIds: (id: string, assetIds: string[]) => Promise<void>;
   removeAssetIds: (id: string, assetIds: string[]) => Promise<void>;
 }
+
+export type SyncAck = {
+  type: SyncEntityType;
+  updateId: string;
+};

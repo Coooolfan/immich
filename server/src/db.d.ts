@@ -4,7 +4,7 @@
  */
 
 import type { ColumnType } from 'kysely';
-import { Permission } from 'src/enum';
+import { Permission, SyncEntityType } from 'src/enum';
 
 export type ArrayType<T> = ArrayTypeImpl<T> extends (infer U)[] ? U[] : ArrayTypeImpl<T>;
 
@@ -29,7 +29,7 @@ export type JsonPrimitive = boolean | number | string | null;
 
 export type JsonValue = JsonArray | JsonObject | JsonPrimitive;
 
-export type Sourcetype = 'exif' | 'machine-learning';
+export type Sourcetype = 'exif' | 'machine-learning' | 'manual';
 
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
@@ -41,6 +41,7 @@ export interface Activity {
   id: Generated<string>;
   isLiked: Generated<boolean>;
   updatedAt: Generated<Timestamp>;
+  updateId: Generated<string>;
   userId: string;
 }
 
@@ -58,6 +59,7 @@ export interface Albums {
   order: Generated<string>;
   ownerId: string;
   updatedAt: Generated<Timestamp>;
+  updateId: Generated<string>;
 }
 
 export interface AlbumsAssetsAssets {
@@ -79,6 +81,7 @@ export interface ApiKeys {
   name: string;
   permissions: Permission[];
   updatedAt: Generated<Timestamp>;
+  updateId: Generated<string>;
   userId: string;
 }
 
@@ -88,6 +91,7 @@ export interface AssetFaces {
   boundingBoxX2: Generated<number>;
   boundingBoxY1: Generated<number>;
   boundingBoxY2: Generated<number>;
+  deletedAt: Timestamp | null;
   id: Generated<string>;
   imageHeight: Generated<number>;
   imageWidth: Generated<number>;
@@ -102,6 +106,7 @@ export interface AssetFiles {
   path: string;
   type: string;
   updatedAt: Generated<Timestamp>;
+  updateId: Generated<string>;
 }
 
 export interface AssetJobStatus {
@@ -142,6 +147,7 @@ export interface Assets {
   thumbhash: Buffer | null;
   type: string;
   updatedAt: Generated<Timestamp>;
+  updateId: Generated<string>;
 }
 
 export interface AssetStack {
@@ -220,19 +226,23 @@ export interface Libraries {
   ownerId: string;
   refreshedAt: Timestamp | null;
   updatedAt: Generated<Timestamp>;
+  updateId: Generated<string>;
 }
 
 export interface Memories {
   createdAt: Generated<Timestamp>;
   data: Json;
   deletedAt: Timestamp | null;
+  hideAt: Timestamp | null;
   id: Generated<string>;
   isSaved: Generated<boolean>;
   memoryAt: Timestamp;
   ownerId: string;
   seenAt: Timestamp | null;
+  showAt: Timestamp | null;
   type: string;
   updatedAt: Generated<Timestamp>;
+  updateId: Generated<string>;
 }
 
 export interface MemoriesAssetsAssets {
@@ -262,12 +272,20 @@ export interface NaturalearthCountries {
   type: string;
 }
 
+export interface PartnersAudit {
+  deletedAt: Generated<Timestamp>;
+  id: Generated<string>;
+  sharedById: string;
+  sharedWithId: string;
+}
+
 export interface Partners {
   createdAt: Generated<Timestamp>;
   inTimeline: Generated<boolean>;
   sharedById: string;
   sharedWithId: string;
   updatedAt: Generated<Timestamp>;
+  updateId: Generated<string>;
 }
 
 export interface Person {
@@ -282,6 +300,7 @@ export interface Person {
   ownerId: string;
   thumbnailPath: Generated<string>;
   updatedAt: Generated<Timestamp>;
+  updateId: Generated<string>;
 }
 
 export interface Sessions {
@@ -291,7 +310,17 @@ export interface Sessions {
   id: Generated<string>;
   token: string;
   updatedAt: Generated<Timestamp>;
+  updateId: Generated<string>;
   userId: string;
+}
+
+export interface SessionSyncCheckpoints {
+  ack: string;
+  createdAt: Generated<Timestamp>;
+  sessionId: string;
+  type: SyncEntityType;
+  updatedAt: Generated<Timestamp>;
+  updateId: Generated<string>;
 }
 
 export interface SharedLinkAsset {
@@ -325,6 +354,11 @@ export interface SocketIoAttachments {
   payload: Buffer | null;
 }
 
+export interface SystemConfig {
+  key: string;
+  value: string | null;
+}
+
 export interface SystemMetadata {
   key: string;
   value: Json;
@@ -341,6 +375,7 @@ export interface Tags {
   id: Generated<string>;
   parentId: string | null;
   updatedAt: Generated<Timestamp>;
+  updateId: Generated<string>;
   userId: string;
   value: string;
 }
@@ -382,6 +417,13 @@ export interface Users {
   status: Generated<string>;
   storageLabel: string | null;
   updatedAt: Generated<Timestamp>;
+  updateId: Generated<string>;
+}
+
+export interface UsersAudit {
+  id: Generated<string>;
+  userId: string;
+  deletedAt: Generated<Timestamp>;
 }
 
 export interface VectorsPgVectorIndexStat {
@@ -426,13 +468,16 @@ export interface DB {
   migrations: Migrations;
   move_history: MoveHistory;
   naturalearth_countries: NaturalearthCountries;
+  partners_audit: PartnersAudit;
   partners: Partners;
   person: Person;
   sessions: Sessions;
+  session_sync_checkpoints: SessionSyncCheckpoints;
   shared_link__asset: SharedLinkAsset;
   shared_links: SharedLinks;
   smart_search: SmartSearch;
   socket_io_attachments: SocketIoAttachments;
+  system_config: SystemConfig;
   system_metadata: SystemMetadata;
   tag_asset: TagAsset;
   tags: Tags;
@@ -440,6 +485,7 @@ export interface DB {
   typeorm_metadata: TypeormMetadata;
   user_metadata: UserMetadata;
   users: Users;
+  users_audit: UsersAudit;
   'vectors.pg_vector_index_stat': VectorsPgVectorIndexStat;
   version_history: VersionHistory;
 }
